@@ -93,7 +93,9 @@ if 'page' not in st.session_state:
 
 # --- [HOME] 메인 포털 화면 ---
 if st.session_state.page == 'home':
-    st.markdown("
-        <div class="gov-header">
-            <h1 style="font-size: 3.5rem; margin-bottom: 15px; font-weight: 700;">서울시 공공데이터 치안/교통 통합 분석 포털</h1>
-            <p style="font-size:
+    st.markdown("""
+    <div class="insight-box">
+    <b>🏛️ 분석 결과 및 주거 가이드</b><br>
+    종합 분석 결과, CCTV와 범죄 발생 간의 상관관계(0.62)는 유의미하게 높았으나, 교통과 CCTV 간의 상관관계(0.46)는 다소 낮게 나타났습니다. 이는 유동인구가 많은 교통 밀집 지역에 항상 충분한 CCTV가 비례하여 설치되어 있지는 않다는 점을 시사합니다. 따라서 안전한 주거를 위해서는 교통 편리성과 방범 인프라를 별개의 독립적인 기준으로 두고 교차 검증하는 안목이 필요합니다.
+    </div>
+    """, unsafe_allow_html=True)
