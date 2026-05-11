@@ -7,9 +7,9 @@ def load_data():
     # 파일들이 GitHub에 올린 이름과 정확히 일치해야 해!
     try:
         # 만약 파일이 여러 개라면 여기서 하나로 합치는(Merge) 작업을 할 수 있어
-        df_cctv = pd.read_csv('cctv.csv')
-        df_bus = pd.read_csv('bus_stations.csv')
-        df_crime = pd.read_csv('crime_rate.csv')
+        df_cctv = pd.read_csv('cctv_data.csv')
+        df_bus = pd.read_csv('bus_data.csv')
+        df_crime = pd.read_csv('crime_data.csv')
         
         # '자치구' 컬럼을 기준으로 데이터 합치기
         df = pd.merge(df_cctv, df_bus, on='자치구')
