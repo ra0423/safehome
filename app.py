@@ -2,61 +2,77 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import matplotlib.font_manager as fm
+import os
 
-# 한글 폰트 설정 (폰트가 없으면 그래프에서 한글이 깨질 수 있습니다)
-plt.rc('font', family='NanumGothic')
+# 1. 한글 폰트 설정 (Streamlit Cloud 환경 대응)
+@st.cache_data
+def set_korean_font():
+    # 리눅스 환경에 설치된 나눔고딕을 찾거나, 기본 폰트 설정
+    plt.rcParams['font.family'] = 'sans-serif'
+    plt.rcParams['axes.unicode_minus'] = False # 마이너스 기호 깨짐 방지
+    
+    # 만약 로컬에 나눔고딕이 있다면 적용 (시스템 환경에 따라 다를 수 있음)
+    for font in fm.findSystemFonts():
+        if 'Nanum' in font:
+            fm.fontManager.addfont(font)
+            font_name = fm.FontProperties(fname=font).get_name()
+            plt.rc('font', family=font_name)
+            break
+
+set_korean_font()
 
 def load_data():
     try:
-        # 1. 바뀐 파일 이름으로 읽어오기
         df_cctv = pd.read_csv('cctv_data.csv')
         df_bus = pd.read_csv('bus_data.csv')
         df_crime_raw = pd.read_csv('crime_data.csv')
-
-        # 2. 범죄 데이터 자치구별 합산 (상세 내역 -> 자치구별 총합)
+        
+        # 자치구별 합산
         df_crime = df_crime_raw.groupby('자치구')['건수'].sum().reset_index()
-
-        # 3. 데이터 통합 (Merge) - '자치구' 열 기준
+        
+        # 데이터 통합
         df = pd.merge(df_cctv, df_bus, on='자치구')
         df = pd.merge(df, df_crime, on='자치구')
-        
         return df
     except Exception as e:
-        st.error(f"🚨 파일을 불러오는 중 오류가 발생했습니다: {e}")
-        st.info("GitHub에 cctv_data.csv, bus_data.csv, crime_data.csv 파일이 모두 있는지 확인해주세요.")
+        st.error(f"데이터 로드 오류: {e}")
         st.stop()
 
-st.set_page_config(page_title="서울 안전 대시보드", layout="wide")
-st.title("🏙️ 서울시 자치구별 교통 & 치안 상관관계 분석")
+st.title("🏙️ 서울시 자치구별 교통 & 치안 분석")
 
 df = load_data()
 
-if df is not None:
-    st.success("데이터를 성공적으로 불러왔습니다!")
+# 탭 구성
+tab1, tab2, tab3 = st.tabs(["교통 vs 치안", "CCTV vs 치안", "종합 상관계수"])
 
-    # 분석 탭 구성
-    tab1, tab2, tab3 = st.tabs(["교통 vs 치안", "CCTV vs 치안", "종합 상관계수"])
+# 도표 크기 설정 (기존 10, 6에서 약 40% 축소한 6, 4 정도로 설정)
+CHART_SIZE = (6, 4)
 
-    with tab1:
-        st.subheader("1. 교통 편리성(버스 정류소)과 범죄 발생의 관계")
-        fig, ax = plt.subplots(figsize=(10, 6))
-        # 실제 파일 내 열 이름인 '버스 정류소 개수'와 '건수' 사용
-        sns.regplot(data=df, x='버스 정류소 개수', y='건수', ax=ax)
-        st.pyplot(fig)
-        st.write("💡 버스 정류소 수와 범죄 발생 건수 사이의 추세선을 확인합니다.")
+with tab1:
+    st.subheader("1. 교통 편리성(버스)과 범죄 발생")
+    fig, ax = plt.subplots(figsize=CHART_SIZE)
+    sns.regplot(data=df, x='버스 정류소 개수', y='건수', ax=ax)
+    ax.set_title("버스 정류소 수 vs 범죄 건수")
+    ax.set_xlabel("버스 정류소 개수")
+    ax.set_ylabel("범죄 건수")
+    st.pyplot(fig)
 
-    with tab2:
-        st.subheader("2. CCTV 설치 대수와 범죄 발생의 관계")
-        fig, ax = plt.subplots(figsize=(10, 6))
-        # 실제 파일 내 열 이름인 'CCTV 개수'와 '건수' 사용
-        sns.scatterplot(data=df, x='CCTV 개수', y='건수', hue='자치구', s=100, ax=ax)
-        st.pyplot(fig)
-        st.write("💡 자치구별 CCTV 개수에 따른 범죄 발생 분포를 확인합니다.")
+with tab2:
+    st.subheader("2. CCTV 설치 대수와 범죄 발생")
+    fig, ax = plt.subplots(figsize=CHART_SIZE)
+    sns.scatterplot(data=df, x='CCTV 개수', y='건수', hue='자치구', s=80, ax=ax)
+    ax.set_title("CCTV 수 vs 범죄 건수")
+    ax.set_xlabel("CCTV 개수")
+    ax.set_ylabel("범죄 건수")
+    # 범례가 너무 크면 그래프를 가리므로 밖으로 빼거나 크기 조절
+    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='small', ncol=2)
+    st.pyplot(fig)
 
-    with tab3:
-        st.subheader("3. 지표 간 상관관계 (Heatmap)")
-        corr = df[['CCTV 개수', '버스 정류소 개수', '건수']].corr()
-        fig, ax = plt.subplots()
-        sns.heatmap(corr, annot=True, cmap='coolwarm', ax=ax)
-        st.pyplot(fig)
-        st.write("💡 1에 가까울수록 양의 상관관계, -1에 가까울수록 음의 상관관계를 의미합니다.")
+with tab3:
+    st.subheader("3. 지표 간 상관관계")
+    corr = df[['CCTV 개수', '버스 정류소 개수', '건수']].corr()
+    # 상관관계 히트맵은 더 작게 (5, 4)
+    fig, ax = plt.subplots(figsize=(5, 4))
+    sns.heatmap(corr, annot=True, cmap='coolwarm', ax=ax, fmt=".2f")
+    st.pyplot(fig)
