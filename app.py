@@ -10,7 +10,7 @@ def load_data():
     # 1. 파일 읽기 (파일명이 깃허브와 똑같아야 합니다!)
     df_cctv = pd.read_csv('cctv_data.csv')
     df_bus = pd.read_csv('bus_data.csv')
-    df_crime_raw = pd.read_csv('서울_범죄_자치구별_재정렬.csv') # 제가 드린 파일명
+    df_crime_raw = pd.read_csv('crime_data.csv') # 제가 드린 파일명
 
     # 2. 범죄 데이터 요약 (주제 분석을 위해 자치구별 총합 구하기)
     # 상세 내역을 '자치구' 기준으로 다 더합니다.
