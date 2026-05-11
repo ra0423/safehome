@@ -93,7 +93,7 @@ if 'page' not in st.session_state:
 
 # --- [HOME] 메인 포털 화면 ---
 if st.session_state.page == 'home':
-    st.markdown("""
+    st.markdown("
         <div class="gov-header">
             <h1 style="font-size: 3.5rem; margin-bottom: 15px; font-weight: 700;">서울시 공공데이터 치안/교통 통합 분석 포털</h1>
             <p style="font-size:
