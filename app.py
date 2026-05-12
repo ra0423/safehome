@@ -45,9 +45,9 @@ st.markdown(final_style, unsafe_allow_html=True)
 def load_data():
     try:
         # 파일명을 실제 깃허브 파일명과 일치시켜주세요
-        df_cctv = pd.read_csv('서울 CCTV.csv') 
-        df_bus = pd.read_csv('서울시 정류소.csv')
-        df_crime = pd.read_csv('서울_범죄_자치구별_재정렬 (1).csv')
+        df_cctv = pd.read_csv('cctv_data.csv') 
+        df_bus = pd.read_csv('bus_data.csv')
+        df_crime = pd.read_csv('crime_data.csv')
         
         crime_sum = df_crime.groupby('자치구')['건수'].sum().reset_index()
         df = pd.merge(df_cctv, df_bus, on='자치구')
