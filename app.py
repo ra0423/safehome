@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 # 1. 페이지 설정
 st.set_page_config(page_title="서울시 치안/교통 SQL 분석 대시보드", layout="wide")
 
-# 2. 스타일링 (CSS)
+# 2. 스타일링 (안전한 문자열 처리)
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap');
@@ -20,89 +20,82 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 3. SQLite DB 초기화 및 데이터 로드 안정화
+# 3. 데이터베이스 초기화 (컬럼명 자동 매칭)
 @st.cache_resource
 def init_db():
     conn = sqlite3.connect(':memory:', check_same_thread=False)
     try:
-        # 데이터 로드 및 컬럼명 강제 표준화 (SQL 에러 방지)
-        df_cctv_raw = pd.read_csv('cctv_data.csv')
-        df_bus_raw = pd.read_csv('bus_data.csv')
-        df_crime_raw = pd.read_csv('crime_data.csv')
+        # 파일 로드 (파일명: cctv_data.csv, bus_data.csv, crime_data.csv)
+        cctv = pd.read_csv('cctv_data.csv')
+        bus = pd.read_csv('bus_data.csv')
+        crime = pd.read_csv('crime_data.csv')
 
-        # SQL 쿼리에서 오류가 나지 않도록 컬럼명을 영어로 고정하여 테이블 생성
-        # CCTV: [자치구, CCTV대수] -> [GU, CCTV_CNT]
-        df_cctv = pd.DataFrame({'GU': df_cctv_raw.iloc[:, 0], 'CCTV_CNT': df_cctv_raw.iloc[:, 1]})
-        
-        # BUS: [자치구, 정류소수] -> [GU, BUS_CNT]
-        df_bus = pd.DataFrame({'GU': df_bus_raw.iloc[:, 0], 'BUS_CNT': df_bus_raw.iloc[:, 1]})
-        
-        # CRIME: [자치구, 건수] -> [GU, CRIME_CNT]
-        df_crime = pd.DataFrame({'GU': df_crime_raw.iloc[:, 0], 'CRIME_CNT': df_crime_raw.iloc[:, 1]})
-
-        df_cctv.to_sql('CCTV_TABLE', conn, index=False, if_exists='replace')
-        df_bus.to_sql('BUS_TABLE', conn, index=False, if_exists='replace')
-        df_crime.to_sql('CRIME_TABLE', conn, index=False, if_exists='replace')
-        
+        # 컬럼 이름이 한글일 경우를 대비해 첫 번째 열을 GU, 두 번째 열을 VALUE로 표준화하여 테이블 생성
+        pd.DataFrame({'GU': cctv.iloc[:, 0], 'CCTV_CNT': cctv.iloc[:, 1]}).to_sql('CCTV_TABLE', conn, index=False, if_exists='replace')
+        pd.DataFrame({'GU': bus.iloc[:, 0], 'BUS_CNT': bus.iloc[:, 1]}).to_sql('BUS_TABLE', conn, index=False, if_exists='replace')
+        pd.DataFrame({'GU': crime.iloc[:, 0], 'CRIME_CNT': crime.iloc[:, 1]}).to_sql('CRIME_TABLE', conn, index=False, if_exists='replace')
         return conn
     except Exception as e:
-        st.error(f"데이터 로드 에러: {e}")
+        st.error(f"데이터 파일 로드 실패: {e}")
         return None
 
 conn = init_db()
 
-st.markdown('<div class="main-header"><h1>서울시 치안/교통 SQL 인사이트 포털</h1><p>정밀 SQL 쿼리 기반 데이터 분석</p></div>', unsafe_allow_html=True)
+# --- 대시보드 시작 ---
+st.markdown('<div class="main-header"><h1>서울시 치안/교통 SQL 인사이트 포털</h1><p>데이터 유실 방지 및 구문 오류 수정 완료 버전</p></div>', unsafe_allow_html=True)
 
 if conn:
-    # --- SECTION 1 ---
+    # 01. 교통 편리성 분석
     st.markdown('<div class="section-container">', unsafe_allow_html=True)
     st.subheader("📊 01. 교통 편리성과 범죄 발생의 상관관계")
+    q1 = "SELECT B.GU, B.BUS_CNT, C.TOTAL FROM BUS_TABLE B JOIN (SELECT GU, SUM(CRIME_CNT) AS TOTAL FROM CRIME_TABLE GROUP BY GU) C ON B.GU = C.GU"
+    df1 = pd.read_sql(q1, conn)
     
-    query1 = "SELECT B.GU, B.BUS_CNT, C.CRIME_TOTAL FROM BUS_TABLE B JOIN (SELECT GU, SUM(CRIME_CNT) AS CRIME_TOTAL FROM CRIME_TABLE GROUP BY GU) C ON B.GU = C.GU"
-    df1 = pd.read_sql(query1, conn)
-    
-    col1, col2 = st.columns([1.5, 1])
+    col1, col2 = st.columns([2, 1])
     with col1:
-        fig1 = px.scatter(df1, x='BUS_CNT', y='CRIME_TOTAL', hover_name='GU', trendline="ols", height=450, labels={'BUS_CNT':'정류소 수', 'CRIME_TOTAL':'범죄 건수'})
-        st.plotly_chart(fig1, use_container_width=True)
+        if not df1.empty:
+            fig1 = px.scatter(df1, x='BUS_CNT', y='TOTAL', hover_name='GU', trendline="ols", height=450, labels={'BUS_CNT':'정류소 수', 'TOTAL':'범죄 건수'})
+            st.plotly_chart(fig1, use_container_width=True)
+        else: st.warning("데이터가 비어있습니다.")
     with col2:
-        st.markdown('<span class="tag">SQL QUERY</span>', unsafe_allow_html=True)
-        st.code(query1, language='sql')
-        st.markdown('<div class="insight-box">유동인구가 많은 교통 요충지는 생활 편의성이 높으나 범죄 빈도도 높은 경향이 있습니다.</div>', unsafe_allow_html=True)
+        st.code(q1, language='sql')
+        st.markdown('<div class="insight-box"><b>💡 인사이트:</b> 유동인구가 많은 교통 밀집 지역은 치안 관리가 더 집중되어야 함을 보여줍니다.</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- SECTION 2 ---
+    # 02. CCTV 분석
     st.markdown('<div class="section-container">', unsafe_allow_html=True)
-    st.subheader("📹 02. 방범 인프라(CCTV)의 범죄 예방 분석")
+    st.subheader("📹 02. 방범 인프라(CCTV)의 범죄 예방 효과")
+    q2 = "SELECT V.GU, V.CCTV_CNT, C.TOTAL FROM CCTV_TABLE V JOIN (SELECT GU, SUM(CRIME_CNT) AS TOTAL FROM CRIME_TABLE GROUP BY GU) C ON V.GU = C.GU"
+    df2 = pd.read_sql(q2, conn)
     
-    query2 = "SELECT V.GU, V.CCTV_CNT, C.CRIME_TOTAL FROM CCTV_TABLE V JOIN (SELECT GU, SUM(CRIME_CNT) AS CRIME_TOTAL FROM CRIME_TABLE GROUP BY GU) C ON V.GU = C.GU"
-    df2 = pd.read_sql(query2, conn)
-    
-    col3, col4 = st.columns([1.5, 1])
+    col3, col4 = st.columns([2, 1])
     with col3:
-        fig2 = px.scatter(df2, x='CCTV_CNT', y='CRIME_TOTAL', hover_name='GU', height=450, labels={'CCTV_CNT':'CCTV 수', 'CRIME_TOTAL':'범죄 건수'})
-        fig2.update_traces(marker=dict(size=15, color='#e63946'))
-        st.plotly_chart(fig2, use_container_width=True)
+        if not df2.empty:
+            fig2 = px.scatter(df2, x='CCTV_CNT', y='TOTAL', hover_name='GU', height=450, labels={'CCTV_CNT':'CCTV 수', 'TOTAL':'범죄 건수'})
+            fig2.update_traces(marker=dict(size=15, color='#e63946'))
+            st.plotly_chart(fig2, use_container_width=True)
+        else: st.warning("데이터가 비어있습니다.")
     with col4:
-        st.markdown('<span class="tag">SQL QUERY</span>', unsafe_allow_html=True)
-        st.code(query2, language='sql')
-        st.markdown('<div class="insight-box">치안 수요가 높은 자치구일수록 행정력이 집중되어 CCTV 설치 대수가 많은 추세를 보입니다.</div>', unsafe_allow_html=True)
+        st.code(q2, language='sql')
+        st.markdown('<div class="insight-box"><b>💡 인사이트:</b> CCTV 설치 대수는 범죄 발생이 빈번한 지역의 보완 지표로 활용됩니다.</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- SECTION 3 ---
+    # 03. 종합 상관도
     st.markdown('<div class="section-container">', unsafe_allow_html=True)
     st.subheader("📈 03. 지표 간 종합 상관관계")
+    q3 = "SELECT V.CCTV_CNT AS CCTV, B.BUS_CNT AS BUS, C.TOTAL AS CRIME FROM CCTV_TABLE V JOIN BUS_TABLE B ON V.GU = B.GU JOIN (SELECT GU, SUM(CRIME_CNT) AS TOTAL FROM CRIME_TABLE GROUP BY GU) C ON V.GU = C.GU"
+    df3 = pd.read_sql(q3, conn)
     
-    query3 = "SELECT V.CCTV_CNT AS CCTV, B.BUS_CNT AS BUS, C.CRIME_TOTAL AS CRIME FROM CCTV_TABLE V JOIN BUS_TABLE B ON V.GU = B.GU JOIN (SELECT GU, SUM(CRIME_CNT) AS CRIME_TOTAL FROM CRIME_TABLE GROUP BY GU) C ON V.GU = C.GU"
-    df3 = pd.read_sql(query3, conn)
-    
-    col5, col6 = st.columns([1.5, 1])
+    col5, col6 = st.columns([2, 1])
     with col5:
-        corr = df3.corr()
-        fig3 = go.Figure(data=go.Heatmap(z=corr.values, x=corr.columns, y=corr.columns, colorscale='RdBu_r'))
-        st.plotly_chart(fig3, use_container_width=True)
+        if not df3.empty:
+            corr = df3.corr()
+            fig3 = go.Figure(data=go.Heatmap(z=corr.values, x=corr.columns, y=corr.columns, colorscale='RdBu_r'))
+            st.plotly_chart(fig3, use_container_width=True)
     with col6:
-        st.markdown('<span class="tag">SQL QUERY</span>', unsafe_allow_html=True)
-        st.code(query3, language='sql')
-        st.markdown('<div class="insight-box">각 지표 간의 상관관계를 통해 종합적인 주거 안전도를 판단할 수 있습니다.</div>', unsafe_allow_html=True)
+        st.code(q3, language='sql')
+        st.markdown('<div class="insight-box"><b>💡 인사이트:</b> 세 지표의 상관계수를 통해 자치구별 안전 인프라 효율성을 진단합니다.</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
+
+else:
+    st.error("데이터베이스 연결에 실패했습니다. CSV 파일명을 확인하세요.")
