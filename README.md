@@ -4,7 +4,7 @@
 > 버스 정류소 · CCTV · 범죄 데이터로 살펴보는 서울 25개 자치구 안전 지표
 
 🤖 AI 프롬프트 링크:
-https://sookmyung.factchat.bot/dashboard/chat/28139/a4f2f1a7-996b-4c5f-9042-38011f962c1d
+[https://sookmyung.factchat.bot/dashboard/chat/28139/a4f2f1a7-996b-4c5f-9042-38011f962c1d](https://gemini.google.com/app/552c7a3fcc4b358f?hl=ko)
 ---
 
 ## 📂 데이터
