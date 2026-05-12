@@ -6,32 +6,33 @@ import plotly.graph_objects as go
 # 1. 페이지 설정
 st.set_page_config(page_title="서울시 치안/교통 종합 대시보드", layout="wide")
 
-# 2. 스타일 설정 (가독성 중심)
+# 2. 스타일 설정
 final_style = """
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap');
     html, body, [class*="css"] { font-family: 'Noto Sans KR', sans-serif; }
     
-    /* 상단 헤더 */
     .main-header {
         background-color: #002d56; padding: 40px; color: white; text-align: center; 
         border-bottom: 8px solid #af8a2c; margin-bottom: 50px;
     }
     
-    /* 섹션 타이틀 */
     .section-title {
         border-left: 8px solid #af8a2c; padding-left: 15px; 
         margin: 60px 0 30px 0; font-size: 2rem; font-weight: 700; color: #002d56;
     }
 
-    /* 인사이트 박스 */
     .insight-box {
         background-color: #f8f9fa; padding: 25px; border-radius: 12px;
         border: 1px solid #dee2e6; border-left: 10px solid #002d56; 
-        margin-bottom: 40px; font-size: 1.1rem; line-height: 1.6;
+        margin-bottom: 20px; font-size: 1.1rem; line-height: 1.6;
     }
     
-    /* 차트 배경 컨테이너 */
+    .sql-box {
+        background-color: #262730; color: #f0f2f6; padding: 15px; border-radius: 8px;
+        font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; margin-bottom: 40px;
+    }
+    
     .chart-container {
         background-color: white; padding: 20px; border-radius: 15px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px;
@@ -44,12 +45,12 @@ st.markdown(final_style, unsafe_allow_html=True)
 @st.cache_data
 def load_data():
     try:
-        # 파일명을 실제 깃허브 파일명과 일치시켜주세요
         df_cctv = pd.read_csv('cctv_data.csv') 
         df_bus = pd.read_csv('bus_data.csv')
         df_crime = pd.read_csv('crime_data.csv')
         
         crime_sum = df_crime.groupby('자치구')['건수'].sum().reset_index()
+        # 실제 컬럼명 반영: 'CCTV 개수', '버스 정류소 개수'
         df = pd.merge(df_cctv, df_bus, on='자치구')
         df = pd.merge(df, crime_sum, on='자치구')
         df.columns = ['자치구', 'CCTV_Count', 'Bus_Count', 'Crime_Count']
@@ -85,6 +86,18 @@ if df is not None:
             편리한 교통 환경은 주거의 큰 장점이지만, 안전을 위해서는 정류소 인근의 방범 순찰 강도가 높은 지역을 우선 고려하는 것이 좋습니다.
         </div>
         """, unsafe_allow_html=True)
+        st.info("💡 **데이터 추출 SQL**")
+        st.code(f"""
+SELECT 
+    B.자치구, 
+    B."버스 정류소 개수", 
+    C.Crime_Sum
+FROM bus_data B
+JOIN (
+    SELECT 자치구, SUM(건수) AS Crime_Sum 
+    FROM crime_data GROUP BY 자치구
+) C ON B.자치구 = C.자치구;
+        """, language="sql")
 
     # [SECTION 2: CCTV와 치안]
     st.markdown('<div class="section-title">02. 방범 인프라(CCTV) vs 범죄 발생</div>', unsafe_allow_html=True)
@@ -103,10 +116,22 @@ if df is not None:
         st.markdown(f"""
         <div class="insight-box">
             <b>🏛️ 방범 인프라 가이드</b><br>
-            CCTV 설치 대수(0.62)는 범죄 발생과 유의미한 상관관계를 보입니다. 이는 치안 수요가 높은 곳에 인프라가 집중되고 있음을 의미합니다. 
+            CCTV 설치 대수는 범죄 발생과 유의미한 상관관계를 보입니다. 이는 치안 수요가 높은 곳에 인프라가 집중되고 있음을 의미합니다. 
             주거지 선택 시, 단순 설치 대수뿐 아니라 자치구별 '면적 대비 CCTV 밀도'를 함께 살피는 안목이 필요합니다.
         </div>
         """, unsafe_allow_html=True)
+        st.info("💡 **데이터 추출 SQL**")
+        st.code(f"""
+SELECT 
+    V.자치구, 
+    V."CCTV 개수", 
+    C.Crime_Sum
+FROM cctv_data V
+JOIN (
+    SELECT 자치구, SUM(건수) AS Crime_Sum 
+    FROM crime_data GROUP BY 자치구
+) C ON V.자치구 = C.자치구;
+        """, language="sql")
 
     # [SECTION 3: 종합 상관도]
     st.markdown('<div class="section-title">03. 지표 간 종합 상관관계</div>', unsafe_allow_html=True)
@@ -128,11 +153,25 @@ if df is not None:
         st.markdown(f"""
         <div class="insight-box">
             <b>🏛️ 종합 분석 결론</b><br>
-            CCTV와 범죄 간의 상관관계에 비해 교통과 CCTV 간의 상관관계(0.46)는 다소 낮게 나타났습니다. 
+            CCTV와 범죄 간의 상관관계에 비해 교통과 CCTV 간의 상관관계는 다소 낮게 나타났습니다. 
             이는 교통 요충지에 항상 비례하는 방범 시설이 갖춰진 것은 아님을 시사합니다. 
-            따라서 <b>'교통 편리성'</b>과 <b>'방범 인프라'</b>를 독립적인 기준으로 두고 교차 검증하는 것이 가장 안전한 주거 가이드입니다.
+            따라서 <b>'교통 편리성'</b>과 <b>'방범 인프라'</b>를 독립적인 기준으로 교차 검증하는 것이 좋습니다.
         </div>
         """, unsafe_allow_html=True)
+        st.info("💡 **통합 분석 SQL**")
+        st.code(f"""
+SELECT 
+    V.자치구, 
+    V."CCTV 개수", 
+    B."버스 정류소 개수", 
+    C.Crime_Sum
+FROM cctv_data V
+JOIN bus_data B ON V.자치구 = B.자치구
+JOIN (
+    SELECT 자치구, SUM(건수) AS Crime_Sum 
+    FROM crime_data GROUP BY 자치구
+) C ON V.자치구 = C.자치구;
+        """, language="sql")
 
 else:
-    st.error("데이터 파일을 불러올 수 없습니다. 파일명이 '서울 CCTV.csv', '서울시 정류소.csv', '서울_범죄_자치구별_재정렬 (1).csv'와 일치하는지 확인해주세요.")
+    st.error("데이터 파일을 불러올 수 없습니다. 파일명이 'cctv_data.csv', 'bus_data.csv', 'crime_data.csv'인지 확인해주세요.")
