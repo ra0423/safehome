@@ -57,20 +57,3 @@ https://gemini.google.com/app/552c7a3fcc4b358f?hl=ko
 > 💡 **인사이트:** '교통 편의 → 유동인구 증가 → CCTV 확충 → 범죄 억제'라는 선순환 구조가 일부 자치구에서 작동하고 있음을 확인할 수 있습니다. 교통과 CCTV가 모두 잘 갖춰진 자치구에서 범죄율이 낮게 유지되는 경향이 가장 뚜렷하게 나타납니다.
 
 ---
-
-## 🚀 실행 방법
-
-```bash
-# 1. 라이브러리 설치
-pip install -r requirements.txt
-
-# 2. SQLite DB 생성 (최초 1회)
-python create_db.py
-
-# 3. 앱 실행
-streamlit run app.py
-```
-
-## ☁️ 배포
-
-[Streamlit Community Cloud](https://share.streamlit.io) 에서 GitHub 저장소를 연결하면 무료로 배포할 수 있습니다.
