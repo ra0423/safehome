@@ -1,11 +1,16 @@
 # safehome
 # 🏙️ 서울 안전주거 분석 대시보드
+버스 정류소 · CCTV · 범죄 데이터로 살펴보는 서울 25개 자치구 안전 지표
 
-> 버스 정류소 · CCTV · 범죄 데이터로 살펴보는 서울 25개 자치구 안전 지표
+**웹사이트 링크**
+https://easy2safehome.streamlit.app/
+---
 
 🤖 AI 프롬프트 링크:
 https://gemini.google.com/app/552c7a3fcc4b358f?hl=ko
 ---
+
+
 
 ## 📂 데이터
 
